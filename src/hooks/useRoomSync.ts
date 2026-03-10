@@ -62,26 +62,6 @@ export function useRoomSync(roomId: string, userId: string) {
         }
     }, [roomId, isMuted]);
 
-    // Handle user presence
-    useEffect(() => {
-        if (!roomId || !userId) return;
-
-        if (hasFirebaseConfig) {
-            const userRef = ref(db, `rooms/${roomId}/users/${userId}`);
-            onDisconnect(userRef).remove();
-        } else {
-            // For BroadcastChannel, handle window unload
-            const handleUnload = () => {
-                leaveRoom();
-            };
-            window.addEventListener('unload', handleUnload);
-            return () => {
-                window.removeEventListener('unload', handleUnload);
-                leaveRoom();
-            };
-        }
-    }, [roomId, userId]);
-
     // Broadcast state for local testing
     const broadcastLocalState = (newState: RoomState) => {
         if (!hasFirebaseConfig && bcRef.current) {
@@ -126,6 +106,30 @@ export function useRoomSync(roomId: string, userId: string) {
             });
         }
     }, [roomId, userId]);
+
+    // Handle user presence
+    useEffect(() => {
+        if (!roomId || !userId) return;
+
+        if (hasFirebaseConfig) {
+            const userRef = ref(db, `rooms/${roomId}/users/${userId}`);
+            onDisconnect(userRef).remove();
+        }
+
+        const handleUnload = () => {
+            leaveRoom();
+        };
+
+        window.addEventListener('beforeunload', handleUnload);
+        window.addEventListener('unload', handleUnload);
+
+        return () => {
+            window.removeEventListener('beforeunload', handleUnload);
+            window.removeEventListener('unload', handleUnload);
+            // On unmount (like navigating away via React Router), manually leave
+            leaveRoom();
+        };
+    }, [roomId, userId, leaveRoom]);
 
     const updateDeckStatus = useCallback(async (status: string) => {
         if (hasFirebaseConfig) {

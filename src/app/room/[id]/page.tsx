@@ -48,8 +48,17 @@ export default function RoomPage() {
     const params = useParams();
     const roomId = params.id as string;
 
-    // A unique user ID for this session
-    const [userId] = useState(() => Math.random().toString(36).substr(2, 9));
+    // A unique user ID for this session (persisted for the room to avoid ghost duplicates on refresh/rejoin)
+    const [userId] = useState(() => {
+        if (typeof sessionStorage !== "undefined") {
+            const stored = sessionStorage.getItem(`sts2_user_id_${roomId}`);
+            if (stored) return stored;
+            const newId = Math.random().toString(36).substr(2, 9);
+            sessionStorage.setItem(`sts2_user_id_${roomId}`, newId);
+            return newId;
+        }
+        return Math.random().toString(36).substr(2, 9);
+    });
     const { roomState, joinRoom, updateDeckStatus, sendMessage, isMuted, setIsMuted, leaveRoom } = useRoomSync(roomId, userId);
 
     const [copied, setCopied] = useState(false);
