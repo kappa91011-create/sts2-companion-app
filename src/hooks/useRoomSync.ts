@@ -10,6 +10,7 @@ export function useRoomSync(roomId: string, userId: string) {
     const [roomState, setRoomState] = useState<RoomState | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isKicked, setIsKicked] = useState(false);
+    const [hasBeenInRoom, setHasBeenInRoom] = useState(false);
     const bcRef = useRef<BroadcastChannel | null>(null);
     const messageCountRef = useRef(0);
     const hasJoinedRef = useRef(false);
@@ -74,7 +75,6 @@ export function useRoomSync(roomId: string, userId: string) {
 
 
     const joinRoom = useCallback(async (user: UserState) => {
-        hasJoinedRef.current = true;
         if (hasFirebaseConfig) {
             await set(ref(db, `rooms/${roomId}/users/${userId}`), user);
         } else {
@@ -129,19 +129,24 @@ export function useRoomSync(roomId: string, userId: string) {
         return () => {
             window.removeEventListener('beforeunload', handleUnload);
             window.removeEventListener('unload', handleUnload);
-            // On unmount (like navigating away via React Router), manually leave
-            leaveRoom();
         };
     }, [roomId, userId, leaveRoom]);
 
+    // Track if user successfully appeared in state to prevent false kicks on load
+    useEffect(() => {
+        if (roomState?.users?.[userId]) {
+            setHasBeenInRoom(true);
+        }
+    }, [roomState, userId]);
+
     // Detect if we were kicked
     useEffect(() => {
-        if (roomState && roomState.users && hasJoinedRef.current) {
+        if (hasBeenInRoom && roomState && roomState.users) {
             if (!roomState.users[userId]) {
                 setIsKicked(true);
             }
         }
-    }, [roomState, userId]);
+    }, [roomState, userId, hasBeenInRoom]);
 
     const kickUser = useCallback(async (targetUserId: string) => {
         if (hasFirebaseConfig) {
