@@ -20,6 +20,7 @@ export type RoomState = {
         ascension: string;
         playstyle: string;
     };
+    hostId?: string; // ID of the user who created the room
     users: Record<string, UserState>;
     messages: Record<string, ChatMessage>;
 };

@@ -163,9 +163,11 @@ export default function RoomPage() {
         setNewCustomText("");
     };
 
-    // Auto scroll chat
+    // Auto scroll chat when new messages arrive
     useEffect(() => {
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (chatEndRef.current) {
+            chatEndRef.current.scrollIntoView({ behavior: "smooth" });
+        }
     }, [roomState?.messages]);
 
     if (!roomState) {
@@ -389,7 +391,7 @@ export default function RoomPage() {
             )}
 
             {/* CHAT LOG */}
-            <div className="flex-1 p-4 overflow-y-auto min-h-[150px] flex flex-col gap-2">
+            <div className="flex-1 p-4 pb-48 overflow-y-auto min-h-[150px] flex flex-col gap-2">
                 {messages.length === 0 ? (
                     <div className="text-center text-neutral-600 text-sm mt-10 italic">アクションを選択してメッセージを送信してください</div>
                 ) : (
