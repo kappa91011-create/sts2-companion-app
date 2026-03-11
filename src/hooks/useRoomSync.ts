@@ -9,8 +9,10 @@ import { playNotificationSound } from '@/lib/audio';
 export function useRoomSync(roomId: string, userId: string) {
     const [roomState, setRoomState] = useState<RoomState | null>(null);
     const [isMuted, setIsMuted] = useState(false);
+    const [isKicked, setIsKicked] = useState(false);
     const bcRef = useRef<BroadcastChannel | null>(null);
     const messageCountRef = useRef(0);
+    const hasJoinedRef = useRef(false);
 
     // Initial setup
     useEffect(() => {
@@ -72,6 +74,7 @@ export function useRoomSync(roomId: string, userId: string) {
 
 
     const joinRoom = useCallback(async (user: UserState) => {
+        hasJoinedRef.current = true;
         if (hasFirebaseConfig) {
             await set(ref(db, `rooms/${roomId}/users/${userId}`), user);
         } else {
@@ -131,6 +134,30 @@ export function useRoomSync(roomId: string, userId: string) {
         };
     }, [roomId, userId, leaveRoom]);
 
+    // Detect if we were kicked
+    useEffect(() => {
+        if (roomState && roomState.users && hasJoinedRef.current) {
+            if (!roomState.users[userId]) {
+                setIsKicked(true);
+            }
+        }
+    }, [roomState, userId]);
+
+    const kickUser = useCallback(async (targetUserId: string) => {
+        if (hasFirebaseConfig) {
+            await remove(ref(db, `rooms/${roomId}/users/${targetUserId}`));
+        } else {
+            setRoomState((prev) => {
+                if (!prev) return prev;
+                const newUsers = { ...prev.users };
+                delete newUsers[targetUserId];
+                const newState = { ...prev, users: newUsers };
+                broadcastLocalState(newState);
+                return newState;
+            });
+        }
+    }, [roomId]);
+
     const updateDeckStatus = useCallback(async (status: string) => {
         if (hasFirebaseConfig) {
             await set(ref(db, `rooms/${roomId}/users/${userId}/deckStatus`), status);
@@ -182,26 +209,31 @@ export function useRoomSync(roomId: string, userId: string) {
         if (hasFirebaseConfig) {
             const roomRef = ref(db, `rooms/${roomId}/roomInfo`);
             await set(roomRef, roomInfo);
+            const hostRef = ref(db, `rooms/${roomId}/hostId`);
+            await set(hostRef, userId);
         } else {
             const newState = {
                 roomInfo,
+                hostId: userId,
                 users: {},
                 messages: {}
             };
             setRoomState(newState);
             broadcastLocalState(newState);
         }
-    }, [roomId]);
+    }, [roomId, userId]);
 
 
     return {
         roomState,
         joinRoom,
         leaveRoom,
+        kickUser,
         updateDeckStatus,
         sendMessage,
         createRoomInitial,
         isMuted,
-        setIsMuted
+        setIsMuted,
+        isKicked
     };
 }

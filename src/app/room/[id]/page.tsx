@@ -59,7 +59,14 @@ export default function RoomPage() {
         }
         return Math.random().toString(36).substr(2, 9);
     });
-    const { roomState, joinRoom, updateDeckStatus, sendMessage, isMuted, setIsMuted, leaveRoom } = useRoomSync(roomId, userId);
+    const { roomState, joinRoom, updateDeckStatus, sendMessage, isMuted, setIsMuted, leaveRoom, kickUser, isKicked } = useRoomSync(roomId, userId);
+
+    useEffect(() => {
+        if (isKicked) {
+            alert("ホストによってルームから退出させられました。");
+            router.replace("/");
+        }
+    }, [isKicked, router]);
 
     const [copied, setCopied] = useState(false);
     const [isChatOpen, setIsChatOpen] = useState(false);
@@ -231,8 +238,21 @@ export default function RoomPage() {
                 <div className="p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 bg-neutral-900/50">
                     {users.map(u => (
                         <div key={u.id} className="bg-neutral-800 rounded-xl p-3 flex flex-col items-center border border-neutral-700 relative overflow-hidden group">
+                            {roomState?.hostId === userId && u.id !== userId && (
+                                <button
+                                    onClick={() => {
+                                        if (window.confirm(`${u.name} さんをキックしますか？`)) {
+                                            kickUser(u.id);
+                                        }
+                                    }}
+                                    className="absolute top-1 left-1 bg-red-600 hover:bg-red-500 text-white w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-md opacity-0 group-hover:opacity-100 transition z-20"
+                                    title="キックする"
+                                >
+                                    ×
+                                </button>
+                            )}
                             {u.id === userId && (
-                                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+                                <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)] z-10"></div>
                             )}
 
                             {u.id === userId ? (
@@ -260,7 +280,10 @@ export default function RoomPage() {
                                 />
                             )}
 
-                            <span className="text-xs font-bold truncate w-full text-center text-neutral-300">{u.name}</span>
+                            <span className="text-xs font-bold truncate w-full text-center text-neutral-300">
+                                {u.id === roomState?.hostId && <span className="text-yellow-400 mr-0.5" title="Host">👑</span>}
+                                {u.name}
+                            </span>
 
                             {u.id === userId ? (
                                 <input
